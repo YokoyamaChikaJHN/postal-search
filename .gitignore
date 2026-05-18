@@ -1,6 +1,5 @@
 __pycache__/
 *.pyc
 .env
-postal_codes.csv
 ken_all.zip
 KEN_ALL.CSV
