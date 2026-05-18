@@ -1,12 +1,46 @@
+import io
+import os
+import zipfile
+
 import pandas as pd
+import requests
 import streamlit as st
 
 st.set_page_config(page_title="郵便番号検索", page_icon="📮", layout="wide")
 
+CSV_PATH = "postal_codes.csv"
+KEN_ALL_URL = "https://www.post.japanpost.jp/service/search/zipcode/download/kogaki/zip/ken_all.zip"
+
+COLUMNS = [
+    "lg_code", "old_zip", "zip",
+    "pref_kana", "city_kana", "town_kana",
+    "pref", "city", "town",
+    "has_multi_zip", "has_koaza", "has_chome", "has_multi_town",
+    "update_flag", "update_reason",
+]
+
+
+def _build_csv():
+    resp = requests.get(KEN_ALL_URL, timeout=60)
+    resp.raise_for_status()
+    with zipfile.ZipFile(io.BytesIO(resp.content)) as z:
+        csv_name = next(n for n in z.namelist() if n.upper().endswith(".CSV"))
+        with z.open(csv_name) as f:
+            df = pd.read_csv(f, encoding="cp932", header=None, names=COLUMNS, dtype=str)
+    df["zip"] = df["zip"].str.zfill(7)
+    df = df[["zip", "pref", "city", "town", "pref_kana", "city_kana", "town_kana"]]
+    placeholder = "以下に掲載がない場合"
+    df.loc[df["town"].str.startswith(placeholder, na=False), "town"] = ""
+    df.loc[df["town_kana"].str.startswith("イカニケイサイガナイバアイ", na=False), "town_kana"] = ""
+    df.to_csv(CSV_PATH, index=False, encoding="utf-8-sig")
+
 
 @st.cache_data
 def load_data():
-    return pd.read_csv("postal_codes.csv", dtype=str).fillna("")
+    if not os.path.exists(CSV_PATH):
+        with st.spinner("郵便番号データを準備中…（初回のみ）"):
+            _build_csv()
+    return pd.read_csv(CSV_PATH, dtype=str).fillna("")
 
 
 df = load_data()

@@ -29,6 +29,11 @@ COLUMNS = [
     "update_reason",  # 変更理由
 ]
 
+import os
+if os.path.exists(OUTPUT):
+    print(f"{OUTPUT} は既に存在するためスキップします。")
+    raise SystemExit(0)
+
 print("ダウンロード中…", end=" ", flush=True)
 resp = requests.get(URL, timeout=60)
 resp.raise_for_status()
